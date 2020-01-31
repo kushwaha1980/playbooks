@@ -1,0 +1,44 @@
+here is the 2nd wintel playbook I've been working on.  This playbook is designed to:
+Establish free disk space
+Establish total disk size
+Work out % free space
+Paste to console these figures
+Copy ps1 file to machine with when command stating less than 20% free space
+Execute ps1 file when command stating less than 20% free space
+
+---
+#establish playbook name and specify target with hosts.
+- name:"Windows Disk Check Playbook"
+  hosts: group1
+#Use module win_disk_facts
+      tasks:
+        - name: "Get Disk Facts"
+        win_disk_facts:
+#set up variables to find free space, total space and then percent_free using division)
+        - name: "Get % free space"
+        vars:
+            drive_free_space: {{ansible_facts.disks[0].size_remaining}}
+            drive_total_space: {{ansible_facts.disks[0].size}}
+            percent_free: {{drive_free_space}}/{{drive_total_space}}
+# Display above disk space  -    Is formatting correct?
+- debug:
+msg:
+- "Remaining free disk space is: {{ drive_free_space }}"
+- "Total disk space is: {{ drive_total_space }}"
+- "Free disk space precentageis: {{ percent_free }}"
+# 	coul similar to the below code be used to display values in a more readable format ?
+#
+#	debug:
+#       disksize_gib_human: '{{ disk.size|filesizeformat(True) }}' # returns "223.6 GiB" (human readable)
+#       disksize_gib: '{{ (disk.size/1024|pow(3))|round|int }} GiB' # returns "224 GiB" (value in GiB)
+#This will copy local ps1 file to remote machine for execution
+       - name: "Copy PS Script"
+       win_copy:
+       src: c:\temp\powershellscript.ps1
+       dest: 'C:\temp\'
+       remote_src: no
+       when: {{percent_free}} <= 0.2
+#This will run the ps1 file copied locally on the remote machine
+    - name: "Run remote PowerShell Script"
+      win_command: powershell.exe -ExecutionPolicy ByPass -File C:\temp\powershellscript.ps1
+      when: {{percent_free}} <= 0.2
